@@ -1,0 +1,71 @@
+from telegram import Update, ReplyKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
+
+# مراحل التسجيل
+FULL_NAME, PHONE_NUMBER, ID_CARD = range(3)
+
+# توكن البوت
+BOT_TOKEN = "7661351506:AAHtp4gqY_FPrUR2Qnasec5UyWY64GOD9hA"
+
+# قائمة المسؤولين لاستقبال البيانات
+ADMIN_IDS = [123456789, 987654321]  # ✏️ بدّلهم بـ ID المدير العام والمدير التنفيذي
+
+# بداية التسجيل
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📋 مرحبًا بك في نظام التسجيل في M.Fashion.25\nمن فضلك أدخل اسمك الكامل:")
+    return FULL_NAME
+
+# الاسم الكامل
+async def full_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["full_name"] = update.message.text
+    await update.message.reply_text("📱 أدخل رقم هاتفك:")
+    return PHONE_NUMBER
+
+# رقم الهاتف
+async def phone_number(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["phone"] = update.message.text
+    await update.message.reply_text("🪪 أرسل رقم بطاقة تعريفك (أو صورة):")
+    return ID_CARD
+
+# بطاقة التعريف
+async def id_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    context.user_data["id_card"] = update.message.text if update.message.text else "📷 صورة مرسلة"
+
+    message = (
+        f"🆕 تسجيل عامل جديد:\n\n"
+        f"👤 الاسم: {context.user_data['full_name']}\n"
+        f"📞 الهاتف: {context.user_data['phone']}\n"
+        f"🆔 بطاقة تعريف: {context.user_data['id_card']}\n"
+        f"🗣️ من طرف: @{user.username or 'بدون اسم مستخدم'}"
+    )
+
+    for admin_id in ADMIN_IDS:
+        await context.bot.send_message(chat_id=admin_id, text=message)
+
+    await update.message.reply_text("✅ تم إرسال معلوماتك للإدارة للموافقة.\n📌 سنراسلك بعد التأكيد.")
+    return ConversationHandler.END
+
+# إلغاء
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❌ تم إلغاء العملية.")
+    return ConversationHandler.END
+
+# إنشاء التطبيق
+app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+# تحكم في المحادثة
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("start", start)],
+    states={
+        FULL_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, full_name)],
+        PHONE_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone_number)],
+        ID_CARD: [MessageHandler(filters.ALL & ~filters.COMMAND, id_card)],
+    },
+    fallbacks=[CommandHandler("cancel", cancel)],
+)
+
+app.add_handler(conv_handler)
+
+# تشغيل البوت
+app.run_polling()
