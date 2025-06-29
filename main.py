@@ -143,4 +143,31 @@ async def accept_seller(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ حدث خطأ: {e}")
 
 # --- إلغاء التسجيل --- #
-async def cancel(update: Upd)
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❌ تم إلغاء العملية.", reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
+
+# --- التشغيل الرئيسي --- #
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(os.getenv("BOT_TOKEN")).build()
+
+    conv_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler("start", start),
+            CommandHandler("starttest", start),
+        ],
+        states={
+            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
+            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
+            CIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_cin)],
+            WILAYA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_wilaya)],
+            ID_CARD: [MessageHandler(filters.PHOTO, get_id_card)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    app.add_handler(conv_handler)
+    app.add_handler(CommandHandler("accept", accept_seller))
+    app.add_handler(CallbackQueryHandler(handle_decision))
+
+    app.run_polling()
