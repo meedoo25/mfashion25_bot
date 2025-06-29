@@ -17,7 +17,7 @@ NAME, PHONE, CIN, WILAYA, ID_CARD = range(5)
 ADMIN_IDS = [123456789]  # غيّر هذا إلى ID تاع المدير
 OWNER_ID = 987654321     # Meedoo (المدير العام)
 RULES_TEXT = """
-⚠️ قوانين العمل للبائعين:
+⚠️ <b>قوانين العمل للبائعين:</b>
 • كل غياب فوق 48 ساعة دون سبب = حذف تلقائي.
 • كل بائع يتلقى رسالة تحفيزية يومية + إحصائياته.
 • كل ترويج غير جدي أو مخالف يُلغى احتسابه.
@@ -71,7 +71,7 @@ async def get_wilaya(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- استقبال الصورة --- #
 async def get_id_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.photo:
-        await update.message.reply_text("❌ من فضلك أرسل بطاقة التعريف على شكل *صورة*.", parse_mode="Markdown")
+        await update.message.reply_text("❌ من فضلك أرسل بطاقة التعريف على شكل <b>صورة</b>.", parse_mode="HTML")
         return ID_CARD
 
     photo_file = await update.message.photo[-1].get_file()
@@ -80,10 +80,10 @@ async def get_id_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     message = (
-        f"📥 *طلب تسجيل جديد:*\n\n👤 الاسم: {context.user_data['name']}\n"
+        f"📥 <b>طلب تسجيل جديد:</b>\n\n👤 الاسم: {context.user_data['name']}\n"
         f"📞 الهاتف: {context.user_data['phone']}\n🆔 بطاقة التعريف: {context.user_data['cin']}\n"
         f"🌍 الولاية: {context.user_data['wilaya']}\n\n📸 البطاقة مرفقة كصورة.\n\n"
-        f"👤 user_id: `{user_id}`"
+        f"👤 user_id: <code>{user_id}</code>"
     )
 
     keyboard = InlineKeyboardMarkup([
@@ -98,7 +98,7 @@ async def get_id_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=admin_id,
             photo=context.user_data["photo"],
             caption=message,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=keyboard
         )
 
@@ -114,7 +114,7 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("accept_"):
         user_id = int(data.split("_")[1])
         await context.bot.send_message(chat_id=user_id, text="🎉 تم قبولك في فريق M.fashion.25! مرحبا بك!")
-        await context.bot.send_message(chat_id=user_id, text=RULES_TEXT)
+        await context.bot.send_message(chat_id=user_id, text=RULES_TEXT, parse_mode="HTML")
         await query.edit_message_reply_markup(reply_markup=None)
         await query.message.reply_text("✅ تم قبول البائع.")
 
@@ -137,37 +137,10 @@ async def accept_seller(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user_id = int(context.args[0])
         await context.bot.send_message(chat_id=user_id, text="🎉 تم قبولك في فريق M.fashion.25! مرحبا بك!")
-        await context.bot.send_message(chat_id=user_id, text=RULES_TEXT)
+        await context.bot.send_message(chat_id=user_id, text=RULES_TEXT, parse_mode="HTML")
         await update.message.reply_text("✅ تم قبول البائع وإرسال القوانين.")
     except Exception as e:
         await update.message.reply_text(f"❌ حدث خطأ: {e}")
 
 # --- إلغاء التسجيل --- #
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ تم إلغاء العملية.", reply_markup=ReplyKeyboardRemove())
-    return ConversationHandler.END
-
-# --- التشغيل الرئيسي --- #
-if __name__ == "__main__":
-    app = ApplicationBuilder().token(os.getenv("BOT_TOKEN")).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[
-            CommandHandler("start", start),
-            CommandHandler("starttest", start),
-        ],
-        states={
-            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
-            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
-            CIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_cin)],
-            WILAYA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_wilaya)],
-            ID_CARD: [MessageHandler(filters.PHOTO, get_id_card)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-
-    app.add_handler(conv_handler)
-    app.add_handler(CommandHandler("accept", accept_seller))
-    app.add_handler(CallbackQueryHandler(handle_decision))
-
-    app.run_polling()
+async def cancel(update: Upd
