@@ -1,61 +1,74 @@
+from telegram import Update, ReplyKeyboardRemove
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ConversationHandler,
+    filters,
+    ContextTypes,
+)
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 
-FULL_NAME, PHONE_NUMBER, ID_CARD = range(3)
+# الحالة لكل سؤال
+NAME, PHONE, CIN, WILAYA = range(4)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_IDS = eval(os.getenv("ADMIN_IDS"))
+# معرف المدير (بدلو ب ID تاعك)
+ADMIN_IDS = [123456789]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    args = context.args
-    referral = args[0] if args else "غير معروف"
-    context.user_data["referral"] = referral
-    await update.message.reply_text("📋 مرحبًا في التسجيل. الاسم الكامل؟")
-    return FULL_NAME
+    await update.message.reply_text("👋 مرحبا! من فضلك اكتب اسمك الكامل:")
+    return NAME
 
-async def full_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["full_name"] = update.message.text
-    await update.message.reply_text("📱 رقم الهاتف؟")
-    return PHONE_NUMBER
+async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["name"] = update.message.text
+    await update.message.reply_text("📱 الآن أرسل رقم هاتفك:")
+    return PHONE
 
-async def phone_number(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["phone"] = update.message.text
-    await update.message.reply_text("🪪 بطاقة التعريف (رقم أو صورة):")
-    return ID_CARD
+    await update.message.reply_text("🆔 أرسل رقم بطاقة تعريفك:")
+    return CIN
 
-async def id_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.message.from_user
-    context.user_data["id_card"] = update.message.text if update.message.text else "📷 صورة مرسلة"
-    msg = (
-        f"🆕 تسجيل جديد:\n"
-        f"👤 {context.user_data['full_name']}\n"
-        f"📞 {context.user_data['phone']}\n"
-        f"🆔 {context.user_data['id_card']}\n"
-        f"🔗 إحالة: {context.user_data['referral']}\n"
-        f"👤 @{user.username or 'بدون'}"
+async def get_cin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["cin"] = update.message.text
+    await update.message.reply_text("🌍 أخيرًا، أرسل ولايتك:")
+    return WILAYA
+
+async def get_wilaya(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["wilaya"] = update.message.text
+
+    # نجمع البيانات ونبعتها للمدير
+    message = (
+        f"📥 طلب تسجيل جديد:\n\n"
+        f"👤 الاسم: {context.user_data['name']}\n"
+        f"📞 الهاتف: {context.user_data['phone']}\n"
+        f"🆔 بطاقة التعريف: {context.user_data['cin']}\n"
+        f"🌍 الولاية: {context.user_data['wilaya']}"
     )
-    for admin in ADMIN_IDS:
-        await context.bot.send_message(chat_id=admin, text=msg)
-    await update.message.reply_text("✅ تم تسجيل معلوماتك. شكراً لك.")
+
+    for admin_id in ADMIN_IDS:
+        await context.bot.send_message(chat_id=admin_id, text=message)
+
+    await update.message.reply_text("✅ تم إرسال معلوماتك، سيتم التواصل معك قريبًا.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ ألغيت العملية.")
+    await update.message.reply_text("❌ تم إلغاء العملية.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-conv = ConversationHandler(
-    entry_points=[CommandHandler("start", start)],
-    states={
-        FULL_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, full_name)],
-        PHONE_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone_number)],
-        ID_CARD: [MessageHandler(filters.ALL & ~filters.COMMAND, id_card)],
-    },
-    fallbacks=[CommandHandler("cancel", cancel)],
-)
-app.add_handler(conv)
-
 if __name__ == "__main__":
+    app = ApplicationBuilder().token(os.getenv("BOT_TOKEN")).build()
+
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
+            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
+            CIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_cin)],
+            WILAYA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_wilaya)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    app.add_handler(conv_handler)
     app.run_polling()
