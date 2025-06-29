@@ -153,7 +153,7 @@ if __name__ == "__main__":
 
     conv_handler = ConversationHandler(
         entry_points=[
-            CommandHandler("start", start)
+            CommandHandler("start", start),
             CommandHandler("starttest", start),
         ],
         states={
