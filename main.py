@@ -143,4 +143,4 @@ async def accept_seller(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ حدث خطأ: {e}")
 
 # --- إلغاء التسجيل --- #
-async def cancel(update: Upd
+async def cancel(update: Upd)
