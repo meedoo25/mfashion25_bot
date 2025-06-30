@@ -94,13 +94,18 @@ async def get_id_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
 
     for admin_id in ADMIN_IDS:
-        await context.bot.send_photo(
-            chat_id=admin_id,
-            photo=context.user_data["photo"],
-            caption=message,
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
+        print(f"🔁 نحاول نبعث للإدمن: {admin_id}")
+        try:
+            await context.bot.send_photo(
+                chat_id=admin_id,
+                photo=context.user_data["photo"],
+                caption=message,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+            print(f"✅ تبعتت بنجاح لـ {admin_id}")
+        except Exception as e:
+            print(f"❌ خطأ أثناء الإرسال لـ {admin_id}: {e}")
 
     await update.message.reply_text("✅ تم إرسال معلوماتك. سيتم مراجعتها من طرف الإدارة والتواصل معك.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
@@ -160,14 +165,4 @@ if __name__ == "__main__":
             NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
             PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
             CIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_cin)],
-            WILAYA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_wilaya)],
-            ID_CARD: [MessageHandler(filters.PHOTO, get_id_card)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-
-    app.add_handler(conv_handler)
-    app.add_handler(CommandHandler("accept", accept_seller))
-    app.add_handler(CallbackQueryHandler(handle_decision))
-
-    app.run_polling()
+            WILAYA: [MessageHandle
