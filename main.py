@@ -14,7 +14,7 @@ import os
 NAME, PHONE, CIN, WILAYA, ID_CARD = range(5)
 
 # --- إعدادات عامة --- #
-ADMIN_IDS = [123456789]  # غيّر هذا إلى ID تاع المدير
+ADMIN_IDS = [7868012601]  # غيّر هذا إلى ID تاع المدير
 OWNER_ID = 987654321     # Meedoo (المدير العام)
 RULES_TEXT = """
 ⚠️ <b>قوانين العمل للبائعين:</b>
