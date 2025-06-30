@@ -165,4 +165,14 @@ if __name__ == "__main__":
             NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
             PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
             CIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_cin)],
-            WILAYA: [MessageHandle
+            WILAYA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_wilaya)],
+            ID_CARD: [MessageHandler(filters.PHOTO, get_id_card)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    app.add_handler(conv_handler)
+    app.add_handler(CommandHandler("accept", accept_seller))
+    app.add_handler(CallbackQueryHandler(handle_decision))
+
+    app.run_polling()
