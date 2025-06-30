@@ -1,4 +1,4 @@
-from telegram import Update, ReplyKeyboardRemove, InputFile, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, ReplyKeyboardRemove, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -17,7 +17,7 @@ ORDER_NAME, ORDER_PHONE, ORDER_CIN, ORDER_SIZE, ORDER_COLOR, ORDER_MODEL, BUYER_
 # --- إعدادات عامة --- #
 ADMIN_IDS = [6244970377]  # غيّر هذا إلى ID تاع المدير
 OWNER_ID = 987654321     # Meedoo (المدير العام)
-WAREHOUSE_ID = 5501140465
+STOCK_OWNER_ID = 5501140465
 GROUP_LINK = "https://t.me/mohamed789123"
 
 RULES_TEXT = """
@@ -33,125 +33,139 @@ RULES_TEXT = """
  - أخلاقيات التعامل مع الزبائن
 """
 
-# --- البداية --- #
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [["/start"]]
+    keyboard = [["/order"]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
     await update.message.reply_text(
-        "👋 مرحبا بك في M.fashion.25! اضغط على /start للبدء أو أرسل اسمك الكامل:",
+        "👋 مرحبا بك! ارسل اسمك الكامل:",
         reply_markup=reply_markup
     )
     return NAME
 
-# --- بقية خطوات التسجيل (كما هي) --- #
-# ... [get_name, get_phone, get_cin, get_wilaya, get_id_card remain unchanged] ...
+async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["name"] = update.message.text
+    await update.message.reply_text("📱 أرسل رقم هاتفك:")
+    return PHONE
 
-# --- زر القبول والرفض --- #
+async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["phone"] = update.message.text
+    await update.message.reply_text("🔐 أرسل رقم بطاقة التعريف:")
+    return CIN
+
+async def get_cin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["cin"] = update.message.text
+    await update.message.reply_text("🌍 أرسل الولاية:")
+    return WILAYA
+
+async def get_wilaya(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["wilaya"] = update.message.text
+    await update.message.reply_text("📸 ارسل صورة بطاقة التعريف:")
+    return ID_CARD
+
+async def get_id_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.photo:
+        await update.message.reply_text("❌ ارسل صورة فقط.")
+        return ID_CARD
+    file_id = update.message.photo[-1].file_id
+    context.user_data["photo"] = file_id
+    user_id = update.effective_user.id
+
+    caption = f"\ud83d\udcc5 <b>طلب جديد:</b>\n<b>الاسم:</b> {context.user_data['name']}\n<b>الهاتف:</b> {context.user_data['phone']}\n<b>البطاقة:</b> {context.user_data['cin']}\n<b>الولاية:</b> {context.user_data['wilaya']}\n<code>{user_id}</code>"
+    markup = InlineKeyboardMarkup([[InlineKeyboardButton("\u2705 قبول", callback_data=f"accept_{user_id}"),
+                                    InlineKeyboardButton("\u274c رفض", callback_data=f"reject_{user_id}")]])
+    for admin in ADMIN_IDS:
+        await context.bot.send_photo(chat_id=admin, photo=file_id, caption=caption, parse_mode="HTML", reply_markup=markup)
+
+    await update.message.reply_text("✅ تم إرسال معلوماتك، سيتم مراجعتها قريبًا.")
+    return ConversationHandler.END
+
 async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     data = query.data
-    if data.startswith("accept_"):
-        user_id = int(data.split("_")[1])
-        await context.bot.send_message(chat_id=user_id, text="🎉 تم قبولك في فريق M.fashion.25! مرحبا بك!")
-        await context.bot.send_message(chat_id=user_id, text=f"⬇️ رابط المجموعة: {GROUP_LINK}")
+    user_id = int(data.split("_")[1])
+    if data.startswith("accept"):
+        await context.bot.send_message(chat_id=user_id, text="🎉 تم قبولك!")
+        await context.bot.send_message(chat_id=user_id, text=f"انضم للمجموعة: {GROUP_LINK}")
         await context.bot.send_message(chat_id=user_id, text=RULES_TEXT, parse_mode="HTML")
-        await context.bot.send_message(chat_id=user_id, text="📝 لاستكمال الطلبيات، اضغط على /order")
-        await query.edit_message_reply_markup(reply_markup=None)
-        await query.message.reply_text("✅ تم قبول البائع.")
+    else:
+        await context.bot.send_message(chat_id=user_id, text="❌ تم رفض طلبك.")
+    await query.edit_message_reply_markup(reply_markup=None)
 
-    elif data.startswith("reject_"):
-        user_id = int(data.split("_")[1])
-        await context.bot.send_message(chat_id=user_id, text="❌ نعتذر، لم يتم قبول طلبك للانضمام.")
-        await query.edit_message_reply_markup(reply_markup=None)
-        await query.message.reply_text("❌ تم رفض البائع.")
-
-# --- طلبية جديدة --- #
-async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✍️ اكتب اسمك الكامل:")
+# --- الطلبية --- #
+async def order_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📝 اسمك الكامل:")
     return ORDER_NAME
 
 async def order_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["order_name"] = update.message.text
+    context.user_data['order_name'] = update.message.text
     await update.message.reply_text("📞 رقم هاتفك:")
     return ORDER_PHONE
 
 async def order_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["order_phone"] = update.message.text
-    await update.message.reply_text("🆔 رقم بطاقة التعريف:")
+    context.user_data['order_phone'] = update.message.text
+    await update.message.reply_text("🆔 رقم بطاقة تعريفك:")
     return ORDER_CIN
 
 async def order_cin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["order_cin"] = update.message.text
+    context.user_data['order_cin'] = update.message.text
     await update.message.reply_text("📏 المقاس:")
     return ORDER_SIZE
 
 async def order_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["order_size"] = update.message.text
+    context.user_data['order_size'] = update.message.text
     await update.message.reply_text("🎨 اللون:")
     return ORDER_COLOR
 
 async def order_color(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["order_color"] = update.message.text
+    context.user_data['order_color'] = update.message.text
     await update.message.reply_text("🔢 رقم الموديل:")
     return ORDER_MODEL
 
 async def order_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["order_model"] = update.message.text
+    context.user_data['order_model'] = update.message.text
     await update.message.reply_text("👤 اسم المشتري:")
     return BUYER_NAME
 
 async def buyer_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["buyer_name"] = update.message.text
+    context.user_data['buyer_name'] = update.message.text
     await update.message.reply_text("📞 رقم هاتف المشتري:")
     return BUYER_PHONE
 
 async def buyer_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["buyer_phone"] = update.message.text
+    context.user_data['buyer_phone'] = update.message.text
     await update.message.reply_text("📍 عنوان المشتري:")
     return BUYER_ADDRESS
 
 async def buyer_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["buyer_address"] = update.message.text
+    context.user_data['buyer_address'] = update.message.text
 
     msg = (
-        f"🛒 <b>طلبية جديدة:</b>\n\n"
-        f"👤 البائع: {context.user_data['order_name']}\n"
-        f"📞 الهاتف: {context.user_data['order_phone']}\n"
-        f"🆔 رقم التعريف: {context.user_data['order_cin']}\n"
-        f"📏 المقاس: {context.user_data['order_size']}\n"
-        f"🎨 اللون: {context.user_data['order_color']}\n"
-        f"🔢 رقم الموديل: {context.user_data['order_model']}\n\n"
-        f"👤 المشتري: {context.user_data['buyer_name']}\n"
-        f"📞 هاتفه: {context.user_data['buyer_phone']}\n"
-        f"📍 العنوان: {context.user_data['buyer_address']}"
+        f"📦 <b>طلب جديد:</b>\n<b>الاسم:</b> {context.user_data['order_name']}\n<b>الهاتف:</b> {context.user_data['order_phone']}\n"
+        f"<b>البطاقة:</b> {context.user_data['order_cin']}\n<b>المقاس:</b> {context.user_data['order_size']}\n<b>اللون:</b> {context.user_data['order_color']}\n"
+        f"<b>الموديل:</b> {context.user_data['order_model']}\n\n👥 <b>المشتري:</b> {context.user_data['buyer_name']}\n📞 {context.user_data['buyer_phone']}\n📍 {context.user_data['buyer_address']}"
     )
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📦 نفاد المخزون", callback_data=f"outofstock_{update.effective_user.id}")]
+        [InlineKeyboardButton("📦 نفاد المخزون", callback_data=f"stockout_{update.effective_user.id}")]
     ])
 
-    await context.bot.send_message(chat_id=WAREHOUSE_ID, text=msg, parse_mode="HTML", reply_markup=keyboard)
-    await update.message.reply_text("✅ تم إرسال الطلبية للمخزن. سيتم الرد عليك في حالة وجود مشكلة.")
+    await context.bot.send_message(chat_id=STOCK_OWNER_ID, text=msg, parse_mode="HTML", reply_markup=keyboard)
+    await update.message.reply_text("✅ تم إرسال الطلبية للمخزن.")
     return ConversationHandler.END
 
-# --- زر المخزون --- #
-async def stock_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def stockout_notify(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    user_id = int(query.data.split("_")[1])
+    await context.bot.send_message(chat_id=user_id, text="⚠️ المخزون غير متوفر حالياً. سيتم إعلامك عند توفره.")
+    await query.edit_message_reply_markup(reply_markup=None)
 
-    if query.data.startswith("outofstock_"):
-        seller_id = int(query.data.split("_")[1])
-        await context.bot.send_message(chat_id=seller_id, text="🚫 المنتج غير متوفر في المخزون حالياً.")
-        await query.edit_message_reply_markup(reply_markup=None)
-
-# --- التشغيل الرئيسي --- #
-if __name__ == "__main__":
+if __name__ == '__main__':
     app = ApplicationBuilder().token(os.getenv("BOT_TOKEN")).build()
 
-    registration_handler = ConversationHandler(
+    # التسجيل
+    register_conv = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
             NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
@@ -160,28 +174,29 @@ if __name__ == "__main__":
             WILAYA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_wilaya)],
             ID_CARD: [MessageHandler(filters.PHOTO, get_id_card)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[]
     )
 
-    order_handler = ConversationHandler(
-        entry_points=[CommandHandler("order", order)],
+    # الطلبية
+    order_conv = ConversationHandler(
+        entry_points=[CommandHandler("order", order_start)],
         states={
-            ORDER_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, order_name)],
-            ORDER_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, order_phone)],
-            ORDER_CIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, order_cin)],
-            ORDER_SIZE: [MessageHandler(filters.TEXT & ~filters.COMMAND, order_size)],
-            ORDER_COLOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, order_color)],
-            ORDER_MODEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, order_model)],
-            BUYER_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, buyer_name)],
-            BUYER_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, buyer_phone)],
-            BUYER_ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, buyer_address)],
+            ORDER_NAME: [MessageHandler(filters.TEXT, order_name)],
+            ORDER_PHONE: [MessageHandler(filters.TEXT, order_phone)],
+            ORDER_CIN: [MessageHandler(filters.TEXT, order_cin)],
+            ORDER_SIZE: [MessageHandler(filters.TEXT, order_size)],
+            ORDER_COLOR: [MessageHandler(filters.TEXT, order_color)],
+            ORDER_MODEL: [MessageHandler(filters.TEXT, order_model)],
+            BUYER_NAME: [MessageHandler(filters.TEXT, buyer_name)],
+            BUYER_PHONE: [MessageHandler(filters.TEXT, buyer_phone)],
+            BUYER_ADDRESS: [MessageHandler(filters.TEXT, buyer_address)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[]
     )
 
-    app.add_handler(registration_handler)
-    app.add_handler(order_handler)
-    app.add_handler(CallbackQueryHandler(handle_decision))
-    app.add_handler(CallbackQueryHandler(stock_decision))
+    app.add_handler(register_conv)
+    app.add_handler(order_conv)
+    app.add_handler(CallbackQueryHandler(handle_decision, pattern="^(accept_|reject_)"))
+    app.add_handler(CallbackQueryHandler(stockout_notify, pattern="^stockout_"))
 
     app.run_polling()
