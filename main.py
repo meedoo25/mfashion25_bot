@@ -33,9 +33,7 @@ RULES_TEXT = """
 
 # --- Start --- #
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [["/order"]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text("مرحبا بك! اضغط على /order لإرسال طلب جديد أو أدخل معلوماتك للبدء.", reply_markup=reply_markup)
+    await update.message.reply_text("مرحبا بك! من فضلك أرسل اسمك الكامل للبدء بالتسجيل.", reply_markup=ReplyKeyboardRemove())
     return NAME
 
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -99,6 +97,11 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=user_id, text="تم قبولك. هذه قوانين العمل:")
         await context.bot.send_message(chat_id=user_id, text=RULES_TEXT)
         await context.bot.send_message(chat_id=user_id, text="رابط المجموعة: https://t.me/mohamed789123")
+
+        keyboard = [["/order"]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await context.bot.send_message(chat_id=user_id, text="يمكنك الآن إرسال طلب جديد عبر الزر أدناه:", reply_markup=reply_markup)
+
         await query.edit_message_reply_markup(reply_markup=None)
         await query.message.reply_text("تم قبول البائع.")
 
@@ -220,7 +223,8 @@ if __name__ == "__main__":
 
     app.add_handler(registration_conv)
     app.add_handler(order_conv)
-    app.add_handler(CallbackQueryHandler(handle_decision, pattern="^(accept_|reject_)"))
+    app.add_handler(CallbackQueryHandler(handle_decision, pattern="^(accept_|reject_)")
+    )
     app.add_handler(CallbackQueryHandler(handle_outofstock, pattern="^outofstock_"))
 
     app.run_polling()
